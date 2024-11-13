@@ -2,7 +2,10 @@
 
 use std::{fs::File, io::Read};
 
-use bpmbeats::spotify::auth_struct::{AccessToken, ClientInfo};
+use bpmbeats::spotify::{
+    api::Api,
+    auth_struct::{AccessToken, ClientInfo},
+};
 use reqwest::{header::CONTENT_TYPE, Client};
 
 #[tokio::main]
@@ -42,5 +45,12 @@ async fn main() {
 
     let access_token: AccessToken<'_> =
         serde_json::from_str(&response).expect("Failed to deserialize access token");
-    println!("{:?}", access_token);
+    let api = Api::authorize(access_token);
+
+    let song = api
+        .get_audio_features("6jbYpRPTEFl1HFKHk1IC0m")
+        .await
+        .expect("Failed to get song info");
+
+    println!("{:?}", song)
 }
