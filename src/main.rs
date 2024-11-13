@@ -56,7 +56,10 @@ async fn main() {
 
     println!("{:?}", song);
 
-    api.get_playlist("3cEYpjA9oz9GiPac4AsH4n")
+    let playlist = api
+        .get_playlist("3cEYpjA9oz9GiPac4AsH4n")
         .await
         .expect("Get random playlist");
+
+    println!("{:?}", playlist);
 }

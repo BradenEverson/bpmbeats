@@ -1,11 +1,13 @@
 //! API Wrapper Implementations
 
 use audio_features::AudioFeatures;
+use playlist::Playlist;
 use reqwest::{header::AUTHORIZATION, Client, StatusCode};
 
 use super::auth_struct::AccessToken;
 
 pub mod audio_features;
+pub mod playlist;
 
 /// Error type from an API call
 #[derive(Debug, thiserror::Error)]
@@ -50,12 +52,11 @@ impl<'a> Api<'a> {
     }
 
     /// Gets playlist metadata from a playlist ID
-    pub async fn get_playlist(&self, playlist_id: &str) -> Result<()> {
+    pub async fn get_playlist(&self, playlist_id: &str) -> Result<Playlist> {
         let url = format!("https://api.spotify.com/v1/playlists/{}", playlist_id);
         let response_text = self.send_request(&url).await?;
-        println!("{response_text}");
-        //let playlist = serde_json::from_str(&response_text)?;
-        Ok(())
+        let playlist = serde_json::from_str(&response_text)?;
+        Ok(playlist)
     }
 
     /// Sends a request and returns it's response
