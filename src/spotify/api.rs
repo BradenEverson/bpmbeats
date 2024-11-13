@@ -43,6 +43,30 @@ impl<'a> Api<'a> {
         }
     }
 
+    /// Adds a song to the current queue
+    pub async fn add_to_queue(&self, song_id: &str) -> Result<()> {
+        let url = format!(
+            "https://api.spotify.com/v1/me/player/queue?uri=spotify:track:{}",
+            song_id
+        );
+
+        let bearer_token = format!("Bearer {}", self.token.access_token);
+
+        let client = Client::new();
+
+        let response = client
+            .post(url)
+            .header(AUTHORIZATION, bearer_token)
+            .send()
+            .await?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(Error::ResponseError(response.status()))
+        }
+    }
+
     /// Gets the audio features of a song based on its Song ID
     pub async fn get_audio_features(&self, song_id: &str) -> Result<AudioFeatures> {
         let url = format!("https://api.spotify.com/v1/audio-features/{}", song_id);

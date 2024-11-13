@@ -46,20 +46,27 @@ async fn main() {
         serde_json::from_str(&response).expect("Failed to deserialize access token");
     let api = Api::authorize(access_token);
 
-    /// Tyler the Creator's song "Like Him"
-    const LIKE_HIM: &str = "6jbYpRPTEFl1HFKHk1IC0m";
-
-    let song = api
-        .get_audio_features(LIKE_HIM)
-        .await
-        .expect("Failed to get song info");
-
-    println!("{:?}", song);
-
     let playlist = api
-        .get_playlist("3cEYpjA9oz9GiPac4AsH4n")
+        .get_playlist("4KDw5FSSPr4UwzT0sMc1NZ")
         .await
         .expect("Get random playlist");
 
-    println!("{:?}", playlist);
+    let tracks: Vec<String> = playlist
+        .tracks
+        .items
+        .into_iter()
+        .map(|song| song.track.id)
+        .collect();
+
+    for track in tracks {
+        let song = api
+            .get_audio_features(&track)
+            .await
+            .expect("Failed to get song from ID");
+        println!("{:?}", song)
+    }
+
+    api.add_to_queue("7nCONy10IHp7XD3oYZ0lcx")
+        .await
+        .expect("Failed to enqueue song");
 }
