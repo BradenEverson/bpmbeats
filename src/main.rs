@@ -37,8 +37,7 @@ async fn main() {
         .expect("Failed to get response");
 
     let response = if response.status().is_success() {
-        let response_text = response.text().await.expect("Failed to parse text");
-        response_text
+        response.text().await.expect("Failed to parse text")
     } else {
         panic!("Failed to fetch token: {}", response.status());
     };
@@ -47,10 +46,17 @@ async fn main() {
         serde_json::from_str(&response).expect("Failed to deserialize access token");
     let api = Api::authorize(access_token);
 
+    /// Tyler the Creator's song "Like Him"
+    const LIKE_HIM: &str = "6jbYpRPTEFl1HFKHk1IC0m";
+
     let song = api
-        .get_audio_features("6jbYpRPTEFl1HFKHk1IC0m")
+        .get_audio_features(LIKE_HIM)
         .await
         .expect("Failed to get song info");
 
-    println!("{:?}", song)
+    println!("{:?}", song);
+
+    api.get_playlist("3cEYpjA9oz9GiPac4AsH4n")
+        .await
+        .expect("Get random playlist");
 }

@@ -44,18 +44,32 @@ impl<'a> Api<'a> {
     /// Gets the audio features of a song based on its Song ID
     pub async fn get_audio_features(&self, song_id: &str) -> Result<AudioFeatures> {
         let url = format!("https://api.spotify.com/v1/audio-features/{}", song_id);
+        let response_text = self.send_request(&url).await?;
+        let features = serde_json::from_str(&response_text)?;
+        Ok(features)
+    }
+
+    /// Gets playlist metadata from a playlist ID
+    pub async fn get_playlist(&self, playlist_id: &str) -> Result<()> {
+        let url = format!("https://api.spotify.com/v1/playlists/{}", playlist_id);
+        let response_text = self.send_request(&url).await?;
+        println!("{response_text}");
+        //let playlist = serde_json::from_str(&response_text)?;
+        Ok(())
+    }
+
+    /// Sends a request and returns it's response
+    async fn send_request(&self, where_to: &str) -> Result<String> {
         let bearer_token = format!("Bearer {}", self.token.access_token);
         let response = self
             .client
-            .get(url)
+            .get(where_to)
             .header(AUTHORIZATION, bearer_token)
             .send()
             .await?;
 
         if response.status().is_success() {
-            let response_text = response.text().await?;
-            let features = serde_json::from_str(&response_text)?;
-            Ok(features)
+            Ok(response.text().await?)
         } else {
             Err(Error::ResponseError(response.status()))
         }
