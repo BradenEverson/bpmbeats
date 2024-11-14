@@ -2,7 +2,10 @@
 
 use audio_features::AudioFeatures;
 use playlist::Playlist;
-use reqwest::{header::AUTHORIZATION, Client, StatusCode};
+use reqwest::{
+    header::{AUTHORIZATION, CONTENT_LENGTH},
+    Client, StatusCode,
+};
 
 use super::auth_struct::AccessToken;
 
@@ -27,16 +30,16 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Spotify API session
-pub struct Api<'a> {
+pub struct Api {
     /// The token for the session
-    token: AccessToken<'a>,
+    token: AccessToken,
     /// The reqwest client
     client: Client,
 }
 
-impl<'a> Api<'a> {
+impl Api {
     /// Creates a new API session from an access token
-    pub fn authorize(token: AccessToken<'a>) -> Self {
+    pub fn authorize(token: AccessToken) -> Self {
         Self {
             token,
             client: Client::new(),
@@ -52,11 +55,11 @@ impl<'a> Api<'a> {
 
         let bearer_token = format!("Bearer {}", self.token.access_token);
 
-        let client = Client::new();
-
-        let response = client
+        let response = self
+            .client
             .post(url)
             .header(AUTHORIZATION, bearer_token)
+            .header(CONTENT_LENGTH, 0)
             .send()
             .await?;
 

@@ -3,19 +3,23 @@
 use serde::Deserialize;
 
 /// Client secret and ID
-#[derive(Deserialize, Debug, Clone, Copy)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct ClientInfo<'a> {
     /// Client secret
     pub client_secret: &'a str,
     /// Client ID
     pub client_id: &'a str,
+    /// Client auth refresh key
+    pub refresh_token: &'a str,
+    /// Client auth key
+    pub auth_token: Option<String>,
 }
 
 /// Access token for a client
-#[derive(Deserialize, Debug, Clone, Copy)]
-pub struct AccessToken<'a> {
+#[derive(Deserialize, Debug, Clone)]
+pub struct AccessToken {
     /// Auth token
-    pub access_token: &'a str,
+    pub access_token: String,
     /// Token's type
     pub token_type: TokenType,
     /// When it expires in seconds

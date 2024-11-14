@@ -1,19 +1,28 @@
 //! Main FW driver
 
-use std::{fs::File, io::Read};
+use std::{fs::File, io::Read, time::Duration};
 
-use bpmbeats::spotify::{
-    api::Api,
-    auth_struct::{AccessToken, ClientInfo},
+use bpmbeats::{
+    pulse_sensor::PulseSensor,
+    spotify::{
+        api::Api,
+        auth_struct::{AccessToken, ClientInfo},
+    },
 };
-use reqwest::{header::CONTENT_TYPE, Client};
+use rand::{seq::SliceRandom, thread_rng};
+use reqwest::Client;
+
+/// The Playlist ID of the BPM Beats Playlist
+const BPM_PLAYLIST: &'static str = "4KDw5FSSPr4UwzT0sMc1NZ";
+/// Threshold for valid BPM to Tempo Songs
+const THRESHOLD: f32 = 5.0;
 
 #[tokio::main]
 async fn main() {
-    let client = Client::new();
-    let url = "https://accounts.spotify.com/api/token";
-
     let mut secrets_file = File::open("secrets.json").expect("Failed to open secrets file");
+
+    let pulse_sensor = PulseSensor::new();
+
     let mut buf = String::new();
     secrets_file
         .read_to_string(&mut buf)
@@ -22,51 +31,85 @@ async fn main() {
     let client_info: ClientInfo<'_> =
         serde_json::from_str(&buf).expect("Failed to deserialize secrets");
 
-    let params = [
-        ("grant_type", "client_credentials"),
-        ("client_id", client_info.client_id),
-        ("client_secret", client_info.client_secret),
-    ];
+    let access_token = refresh_access_token(
+        client_info.refresh_token,
+        client_info.client_id,
+        client_info.client_secret,
+    )
+    .await;
 
-    let response = client
-        .post(url)
-        .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
-        .form(&params)
-        .send()
-        .await
-        .expect("Failed to get response");
-
-    let response = if response.status().is_success() {
-        response.text().await.expect("Failed to parse text")
-    } else {
-        panic!("Failed to fetch token: {}", response.status());
-    };
-
-    let access_token: AccessToken<'_> =
-        serde_json::from_str(&response).expect("Failed to deserialize access token");
     let api = Api::authorize(access_token);
 
     let playlist = api
-        .get_playlist("4KDw5FSSPr4UwzT0sMc1NZ")
+        .get_playlist(BPM_PLAYLIST)
         .await
         .expect("Get random playlist");
 
-    let tracks: Vec<String> = playlist
+    let tracks: Vec<_> = playlist
         .tracks
         .items
         .into_iter()
-        .map(|song| song.track.id)
+        .map(|song| (song.track.name, song.track.id, song.track.duration_ms))
         .collect();
 
-    for track in tracks {
-        let song = api
+    let mut tracks_with_tempo = vec![];
+
+    for (name, track, length) in tracks {
+        let tempo = api
             .get_audio_features(&track)
             .await
-            .expect("Failed to get song from ID");
-        println!("{:?}", song)
+            .expect("Failed to get song features")
+            .tempo;
+
+        tracks_with_tempo.push((name, track, length, tempo))
     }
 
-    api.add_to_queue("7nCONy10IHp7XD3oYZ0lcx")
+    let mut rng = thread_rng();
+
+    loop {
+        let current_bpm = pulse_sensor.get_current_bpm();
+        let viable_tracks: Vec<_> = tracks_with_tempo
+            .iter()
+            .filter(|(_, _, _, tempo)| (tempo - current_bpm).abs() <= THRESHOLD)
+            .collect();
+        let (name, track, length, tempo) = viable_tracks
+            .choose(&mut rng)
+            .expect("Select random viable track");
+
+        println!("[Adding {} to track] Tempo: {}", name, tempo);
+        api.add_to_queue(&track).await.expect("Send song to queue");
+        std::thread::sleep(Duration::from_millis(*length as u64))
+    }
+}
+
+async fn refresh_access_token(
+    refresh_token: &str,
+    client_id: &str,
+    client_secret: &str,
+) -> AccessToken {
+    let params = [
+        ("grant_type", "refresh_token"),
+        ("refresh_token", &refresh_token),
+        ("client_id", &client_id),
+        ("client_secret", &client_secret),
+    ];
+
+    // Send the POST request to Spotify's API
+    let client = Client::new();
+    let response = client
+        .post("https://accounts.spotify.com/api/token")
+        .form(&params)
+        .send()
         .await
-        .expect("Failed to enqueue song");
+        .expect("Failed to send request");
+
+    if response.status().is_success() {
+        let response_text = response.text().await.expect("Failed to get response text");
+        let access_token: AccessToken =
+            serde_json::from_str(&response_text).expect("Failed to deserialize access token");
+
+        access_token
+    } else {
+        panic!("Failed to refresh token");
+    }
 }
