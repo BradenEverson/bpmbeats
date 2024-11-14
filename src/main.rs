@@ -72,13 +72,14 @@ async fn main() {
             .iter()
             .filter(|(_, _, _, tempo)| (tempo - current_bpm).abs() <= THRESHOLD)
             .collect();
-        let (name, track, length, tempo) = viable_tracks
-            .choose(&mut rng)
-            .expect("Select random viable track");
-
-        println!("[Adding {} to track] Tempo: {}", name, tempo);
-        api.add_to_queue(&track).await.expect("Send song to queue");
-        std::thread::sleep(Duration::from_millis(*length as u64))
+        if let Some((name, track, length, tempo)) = viable_tracks.choose(&mut rng) {
+            println!("[Adding {} to track] Tempo: {}", name, tempo);
+            api.add_to_queue(&track).await.expect("Send song to queue");
+            std::thread::sleep(Duration::from_millis(*length as u64))
+        } else {
+            // If BPM is not valid, sit in silence for 15 seconds
+            std::thread::sleep(Duration::from_millis(15_000))
+        }
     }
 }
 
