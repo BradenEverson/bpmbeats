@@ -80,7 +80,6 @@ async fn main() {
             if voltage > THRESHOLD && last_beat_time.elapsed() > Duration::from_millis(300) {
                 beat_count += 1;
                 last_beat_time = Instant::now();
-                println!("Beat detected! Voltage: {:.3} V", voltage);
             }
 
             if start_time.elapsed() >= BPM_CALCULATION_PERIOD {
@@ -151,6 +150,7 @@ async fn main() {
             std::thread::sleep(Duration::from_millis(*length as u64))
         } else {
             // If BPM is not valid, sit in silence for 15 seconds
+            println!("No songs close to Bpm {current_bpm} :( waiting 15 seconds");
             std::thread::sleep(Duration::from_millis(15_000))
         }
     }
