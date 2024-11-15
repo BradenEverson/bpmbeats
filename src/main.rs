@@ -77,12 +77,17 @@ async fn main() {
             .filter(|(_, _, _, tempo)| (tempo - current_bpm).abs() <= THRESHOLD)
             .collect();
         if let Some((name, track, length, tempo)) = viable_tracks.choose(&mut rng) {
-            tracing::info!("[Adding {name} to track] Tempo: {tempo} | Current Bpm : {current_bpm}");
-            api.add_to_queue(track).await.expect("Send song to queue");
-            std::thread::sleep(Duration::from_millis(*length as u64))
+            tracing::info!("[Adding {name} to track] Tempo: {tempo} Current Bpm : {current_bpm}]");
+            let add_to_queue = api.add_to_queue(track).await;
+            if add_to_queue.is_err() {
+                tracing::error!("[Adding {name} to queue failed - it is likely that Spotify is not currently running] - Sleeping for 15 sec");
+                std::thread::sleep(Duration::from_millis(15_000))
+            } else {
+                std::thread::sleep(Duration::from_millis(*length as u64))
+            }
         } else {
             // If BPM is not valid, sit in silence for 15 seconds
-            tracing::error!("No songs close to Bpm {current_bpm} :( waiting 15 seconds");
+            tracing::error!("[No songs close to Bpm {current_bpm}] - Sleeping for 15 sec");
             std::thread::sleep(Duration::from_millis(15_000))
         }
     }
