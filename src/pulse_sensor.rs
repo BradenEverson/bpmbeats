@@ -46,18 +46,17 @@ pub struct PulseSensor {
 
 impl PulseSensor {
     /// Creates a new pulsesensor
-    pub fn new(bpm: Arc<RwLock<f32>>) -> Self {
-        let mut i2c = I2c::new().expect("I2C Init");
-        i2c.set_slave_address(ADS1115_ADDR)
-            .expect("Set slave address");
+    pub fn new(bpm: Arc<RwLock<f32>>) -> rppal::i2c::Result<Self> {
+        let mut i2c = I2c::new()?;
+        i2c.set_slave_address(ADS1115_ADDR)?;
 
-        Self { i2c, bpm }
+        Ok(Self { i2c, bpm })
     }
 
     /// Begins running the pulsesensor BPM calculation logic, will block the current thread so it's
     /// advised that you spawn a new thread to handler BPM calculation and refer to the RwLock for
     /// BPM info
-    pub async fn run(mut self) {
+    pub async fn run(mut self) -> rppal::i2c::Result<()> {
         let mut beat_count = 0;
         let mut last_beat_time = Instant::now();
         let mut start_time = Instant::now();
@@ -73,15 +72,12 @@ impl PulseSensor {
 
             let config_bytes = config.to_be_bytes();
             self.i2c
-                .write(&[CONFIG_REG, config_bytes[0], config_bytes[1]])
-                .expect("Set config bits");
+                .write(&[CONFIG_REG, config_bytes[0], config_bytes[1]])?;
 
             std::thread::sleep(Duration::from_millis(10));
 
             let mut buffer = [0; 2];
-            self.i2c
-                .write_read(&[CONVERSION_REG], &mut buffer)
-                .expect("Read bytes to buffer");
+            self.i2c.write_read(&[CONVERSION_REG], &mut buffer)?;
             let value = i16::from_be_bytes(buffer);
 
             let voltage = value as f32 * 4.096 / 32768.0;
@@ -93,6 +89,7 @@ impl PulseSensor {
 
             if start_time.elapsed() >= BPM_CALCULATION_PERIOD {
                 let bpm = (beat_count as f32 / BPM_CALCULATION_PERIOD.as_secs_f32()) * 60.0;
+                tracing::info!("Current BPM: {bpm}");
                 *bpm_clone.write().await = bpm;
 
                 beat_count = 0;

@@ -24,8 +24,8 @@ async fn main() {
 
     let current_bpm = Arc::new(RwLock::new(60f32));
 
-    let pulse_sensor = PulseSensor::new(current_bpm.clone());
-    tokio::spawn(async move { pulse_sensor.run().await });
+    let pulse_sensor = PulseSensor::new(current_bpm.clone()).expect("Initialize PulseSensor");
+    tokio::spawn(async move { pulse_sensor.run().await.expect("Run BPM") });
 
     let mut buf = String::new();
     secrets_file
@@ -77,12 +77,12 @@ async fn main() {
             .filter(|(_, _, _, tempo)| (tempo - current_bpm).abs() <= THRESHOLD)
             .collect();
         if let Some((name, track, length, tempo)) = viable_tracks.choose(&mut rng) {
-            println!("[Adding {name} to track] Tempo: {tempo} | Current Bpm : {current_bpm}");
+            tracing::info!("[Adding {name} to track] Tempo: {tempo} | Current Bpm : {current_bpm}");
             api.add_to_queue(track).await.expect("Send song to queue");
             std::thread::sleep(Duration::from_millis(*length as u64))
         } else {
             // If BPM is not valid, sit in silence for 15 seconds
-            println!("No songs close to Bpm {current_bpm} :( waiting 15 seconds");
+            tracing::error!("No songs close to Bpm {current_bpm} :( waiting 15 seconds");
             std::thread::sleep(Duration::from_millis(15_000))
         }
     }
