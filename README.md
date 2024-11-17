@@ -3,6 +3,6 @@
 </h1>
 
 <p align="center">
-  exercise music curated based on the current BPM :D
+  exercise music curated based on your current heart rate :D
 </p>
 
